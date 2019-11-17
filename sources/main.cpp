@@ -35,11 +35,11 @@ int main(int argc, const char * argv[]) {
     
     std::cout<<"Enter matrix C: ";
     fill(C,variablesNumber);
+    // True - для двойственной задачи, False - для прямой задачи
+    Simplex lab2(A, B, C, variablesNumber, restrictionNumber, funcTendention, true);
     
-    Simplex lab1(A, B, C, variablesNumber, restrictionNumber, funcTendention);
-    
-    lab1.resolve();
-    lab1.printOptimalSolution();
+    lab2.resolve();
+    lab2.printOptimalSolution();
     
     return 0;
 }
@@ -51,3 +51,5 @@ int main(int argc, const char * argv[]) {
 //2 2 1 2 1 2 -1 1 1 1
 // Проверка на отсутсвие оптимального решения
 //3 3 1 -2 3 4 -5 6 7 -8 9 31 32 33 -4 2 1
+//2 2 6 -1 2 5 12 20 12 -1 F = 27 max
+//3 3 4 1 1 1 2 0 0 0.5 4 5 3 8 6 6 6 F = 30 max

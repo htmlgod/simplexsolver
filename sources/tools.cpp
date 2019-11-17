@@ -56,10 +56,28 @@ void transpose(std::vector< std::vector<float> >& vec, int size) {
     }
 }
 
+std::vector<std::vector<float> > transpose(std::vector<std::vector<float> >& A) {
+    size_t rows = A.size();
+    if (rows == 0) return {{}};
+    size_t cols = A[0].size();
+    std::vector<std::vector<float>> r(cols, std::vector<float>(rows));
+    for (int i = 0; i < rows; ++ i) {
+        for (int j = 0; j < cols; ++ j) {
+            r[j][i] = A[i][j];
+        }
+    }
+    return r;
+}
+
+
 void printTask() {
     std::cout << R"(Primary task of LP:
-    CX -> max(min)
-    AX <= B
-    X >= 0
+    CX->max
+    AX<=B
+    
+Dual task of LP:
+    B'Y -> min
+    A'Y >= C'
+    (A' - transponed matrix)
                     )"<<std::endl;
 }

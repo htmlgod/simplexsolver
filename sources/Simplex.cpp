@@ -2,52 +2,94 @@
 
 #include "Simplex.hpp"
 
-
-
 Simplex::Simplex(std::vector<std::vector<float> >& A,
                  std::vector<int>&                 B,
                  std::vector<int>&                 C,
                  int                 variablesNumber,
                  int               restrictionNumber,
-                 func                 funcTendention) {
-    _A = A;
+                 func                 funcTendention,
+                 bool                           flag) {
+    
     _B = B;
     _C = C;
     _r = 0;
     _k = 0;
+    dual = flag;
     _funcTendention = funcTendention;
     _variablesNumber = variablesNumber;
     _restrictionNumber = restrictionNumber;
-    _columns = _variablesNumber + 1;
-    _rows    = _restrictionNumber + 1;
-    
-    
-    _table.resize(_rows);
-    for (int i = 0; i < _rows; i++)
-        _table[i].resize(_columns);
-    // Ряд и строка с номерами переменных
-    _variablesRow.resize(variablesNumber);
-    _variablesColumn.resize(restrictionNumber);
-    
-    for(int i = 0; i < variablesNumber; i++)
-        _variablesRow[i] = i + 1;
-    for(int j = 0; j < restrictionNumber; j++)
-        _variablesColumn[j] = j + 1 + variablesNumber;
+    if (dual) {
+        _A = transpose(A);
+        _columns = _restrictionNumber + 1;
+        _rows    = _variablesNumber + 1;
+        _table.resize(_rows);
+        for (int i = 0; i < _rows; i++)
+            _table[i].resize(_columns);
+        // Ряд и строка с номерами переменных
+        _variablesRow.resize(_restrictionNumber);
+        _variablesColumn.resize(_variablesNumber);
+        
+        for(int i = 0; i < variablesNumber; i++)
+            _variablesRow[i] = i + 1;
+        for(int j = 0; j < restrictionNumber; j++)
+            _variablesColumn[j] = j + 1 + variablesNumber;
+    } else {
+        _A = A;
+        _columns = _variablesNumber + 1;
+        _rows    = _restrictionNumber + 1;
+        _table.resize(_rows);
+        for (int i = 0; i < _rows; i++)
+            _table[i].resize(_columns);
+        // Ряд и строка с номерами переменных
+        _variablesRow.resize(variablesNumber);
+        _variablesColumn.resize(restrictionNumber);
+        
+        for(int i = 0; i < variablesNumber; i++)
+            _variablesRow[i] = i + 1;
+        for(int j = 0; j < restrictionNumber; j++)
+            _variablesColumn[j] = j + 1 + variablesNumber;
+    }
+    if (dual) {
+        _variable = 'y';
+        _functionChar = "F'";
+    } else {
+        _variable = 'x';
+        _functionChar = "F ";
+    }
 }
 // Составление таблицы
 void Simplex::makeTable(){
-    for(int i = 0; i < _rows - 1; i++)
-        _table[i][0] = static_cast<float>(_B[i]);
-
-    for(int i = 0; i < _rows - 1; i++){
-        for(int j = 1; j < _columns; j++){
-            _table[i][j] = _A[i][j-1];
+    if (dual) {
+        for(int i = 0; i < _rows - 1; i++)
+            _table[i][0] = static_cast<float>(-_C[i]);
+        for(int i = 0; i < _rows - 1; i++){
+            for(int j = 1; j < _columns; j++){
+                _table[i][j] = -_A[i][j-1];
+            }
         }
+        
+        _table[_rows-1][0] = 0;
+        for(int i = 1; i < _columns; i++)
+            _table[_rows-1][i] = static_cast<float>(-_B[i-1]);
+        if (_funcTendention == MIN)
+            _funcTendention = MAX;
+        else
+            _funcTendention = MIN;
+    } else {
+        for(int i = 0; i < _rows - 1; i++)
+            _table[i][0] = static_cast<float>(_B[i]);
+        
+        for(int i = 0; i < _rows - 1; i++){
+            for(int j = 1; j < _columns; j++){
+                _table[i][j] = _A[i][j-1];
+            }
+        }
+        
+        _table[_rows-1][0] = 0;
+        for(int i = 1; i < _columns; i++)
+            _table[_rows-1][i] = static_cast<float>(_C[i-1]);
     }
     
-    _table[_rows-1][0] = 0;
-    for(int i = 1; i < _columns; i++)
-        _table[_rows-1][i] = static_cast<float>(_C[i-1]);
 }
 // Проверки для базисного и оптимального решений
 bool Simplex::isFRowHasPositiveValues(){
@@ -55,6 +97,7 @@ bool Simplex::isFRowHasPositiveValues(){
         if (_table[_rows-1][i] > 0) return true;
     return false;
 }
+
 bool Simplex::isSColumnHasNegativeValues() {
     for(int i = 0; i < _rows - 1; i++)
         if (_table[i][0] < 0) return true;
@@ -64,7 +107,7 @@ bool Simplex::isSColumnHasNegativeValues() {
 float Simplex::getSolvingElement() {
     return _table[_r][_k];
 }
-// Поиск разрешающего элемента для базисного решения
+// Поиск разрешающего элемента для опорного решения
 void Simplex::findSolvingElementBasis() {
     int k = -1;
     int r = 0;
@@ -83,7 +126,7 @@ void Simplex::findSolvingElementBasis() {
     try {
         if (k == -1)
             throw r;
-    } catch (...) {
+    } catch (int k) {
         std::cerr<<"No negative values in row "<<r + 1<<", No solutions for LPP"<<std::endl;
         exit(0);
     }
@@ -149,7 +192,6 @@ int Simplex::findSolvingColumn(){
     _k = k;
     return k;
 }
-
 int Simplex::findSolvingRow() {
     int k = findSolvingColumn();
     int r = 0;
@@ -211,21 +253,21 @@ void Simplex::makeIteration() {
     std::swap(_variablesRow[k - 1] , _variablesColumn[r]);
     print();
 }
-// Нахождение оптимального решения
-void Simplex::findOptimalSolution() {
-    while(isFRowHasPositiveValues()){
-        std::cout<<"######################################################################################################"<<std::endl;
-        std::cout<<"Iteration #"<<_iterationNumber<<std::endl;
-        makeIteration();
-        _iterationNumber++;
-    }
-}
 // Нахождение опорного решения
 void Simplex::findBasisSolution() {
     while(isSColumnHasNegativeValues()){
         std::cout<<"######################################################################################################"<<std::endl;
         std::cout<<"Iteration #"<<_iterationNumber<<std::endl;
         makeIterationBasis();
+        _iterationNumber++;
+    }
+}
+// Нахождение оптимального решения
+void Simplex::findOptimalSolution() {
+    while(isFRowHasPositiveValues()){
+        std::cout<<"######################################################################################################"<<std::endl;
+        std::cout<<"Iteration #"<<_iterationNumber<<std::endl;
+        makeIteration();
         _iterationNumber++;
     }
 }
@@ -242,43 +284,7 @@ void Simplex::resolve() {
 }
 // Вывод информации
 void Simplex::printSolvingElement(){
-    std::cout<<"Solving Element = "<<getSolvingElement()<< "(r = " << _r + 1 << ", k = " << _k <<")"<< std::endl;
-}
-void Simplex::printBasisSolition() {
-    if (isSColumnHasNegativeValues() == false) {
-        std::cout<<"(Basis solution) ";
-        for(int i = 0; i < _columns-1; i++) {
-            std::cout<<"x"<<_variablesRow[i]<<" = 0, ";
-        }
-        for(int i = 0; i < _rows-1; i++) {
-            std::cout<<"x"<<_variablesColumn[i]<<" = "<<_table[i][0]<<", ";
-        }
-        if (_funcTendention == MAX)
-            std::cout<< std::endl <<"F(max) = "<<-_table[_rows-1][0] << std::endl;
-        else
-            std::cout<< std::endl <<"F(min) = "<<_table[_rows-1][0] << std::endl;
-    }
-    else {
-        std::cout<<"No basis solution"<<std::endl;
-    }
-}
-void Simplex::printOptimalSolution(){
-    if (isFRowHasPositiveValues() == false) {
-        std::cout<<"(Optimal solution) ";
-        for(int i = 0; i < _columns-1; i++) {
-            std::cout<<"x"<<_variablesRow[i]<<" = 0, ";
-        }
-        for(int i = 0; i < _rows-1; i++) {
-            std::cout<<"x"<<_variablesColumn[i]<<" = "<<_table[i][0]<<", ";
-        }
-        if (_funcTendention == MAX)
-            std::cout<< std::endl <<"F(max) = "<<-_table[_rows-1][0] << std::endl;
-        else
-            std::cout<< std::endl <<"F(min) = "<<_table[_rows-1][0] << std::endl;
-    }
-    else {
-        std::cout<<"No optimal solution"<<std::endl;
-    }
+    std::cout<<"Solving Element = "<<getSolvingElement()<< "(row = " << _r + 1 << ", column = " << _k <<")"<< std::endl;
 }
 void Simplex::print(){
     std::cout<<std::endl;
@@ -290,7 +296,7 @@ void Simplex::print(){
     
     std::cout<<"|  |"<<std::setw(11)<<"Si0|";
     for (int i = 0; i < _variablesNumber; i++)
-        std::cout<<std::setw(9)<<"x"<<_variablesRow[i]<<"|";
+        std::cout<<std::setw(9)<<_variable<<_variablesRow[i]<<"|";
     std::cout<<std::endl;
     
     for (int i = 0; i < _restrictionNumber; i++) {
@@ -298,7 +304,7 @@ void Simplex::print(){
         for (int i = 0; i < _variablesNumber; i++)
             std::cout<<"----------+";
         std::cout<<std::endl;
-        std::cout<<"|x"<<_variablesColumn[i]<<"|";
+        std::cout<<"|"<<_variable<<_variablesColumn[i]<<"|";
         for (int j = 0; j < _columns; j++)
             std::cout<<std::setw(10)<<_table[i][j]<<"|";
         std::cout<<std::endl;
@@ -307,7 +313,7 @@ void Simplex::print(){
     for (int i = 0; i < _variablesNumber; i++)
         std::cout<<"----------+";
     std::cout<<std::endl;
-    std::cout<<"|F |";
+    std::cout<<"|"<<_functionChar<<"|";
     for (int i = 0; i < _columns; i++)
         std::cout<<std::setw(10)<<_table[_rows-1][i]<<"|";
     std::cout<<std::endl;
@@ -315,4 +321,40 @@ void Simplex::print(){
     for (int i = 0; i < _variablesNumber; i++)
         std::cout<<"----------+";
     std::cout<<std::endl;
+}
+void Simplex::printBasisSolition() {
+    if (isSColumnHasNegativeValues() == false) {
+        std::cout<<"(Basis solution) ";
+        for(int i = 0; i < _columns-1; i++) {
+            std::cout<<_variable<<_variablesRow[i]<<" = 0, ";
+        }
+        for(int i = 0; i < _rows-1; i++) {
+            std::cout<<_variable<<_variablesColumn[i]<<" = "<<_table[i][0]<<", ";
+        }
+        if (_funcTendention == MAX)
+            std::cout<< std::endl <<_functionChar<<"(max) = "<<-_table[_rows-1][0] << std::endl;
+        else
+            std::cout<< std::endl <<_functionChar<<"(min) = "<<_table[_rows-1][0] << std::endl;
+    }
+    else {
+        std::cout<<"No basis solution"<<std::endl;
+    }
+}
+void Simplex::printOptimalSolution(){
+    if (isFRowHasPositiveValues() == false) {
+        std::cout<<"(Optimal solution) ";
+        for(int i = 0; i < _columns-1; i++) {
+            std::cout<<_variable<<_variablesRow[i]<<" = 0, ";
+        }
+        for(int i = 0; i < _rows-1; i++) {
+            std::cout<<_variable<<_variablesColumn[i]<<" = "<<_table[i][0]<<", ";
+        }
+        if (_funcTendention == MAX)
+            std::cout<< std::endl <<_functionChar<<"(max) = "<<-_table[_rows-1][0] << std::endl;
+        else
+            std::cout<< std::endl <<_functionChar<<"(min) = "<<_table[_rows-1][0] << std::endl;
+    }
+    else {
+        std::cout<<"No optimal solution"<<std::endl;
+    }
 }

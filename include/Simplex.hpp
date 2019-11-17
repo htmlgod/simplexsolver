@@ -7,14 +7,17 @@ enum func {MIN, MAX};
 
 class Simplex {
 protected:
-    int _iterationNumber = 1;
-    int _r;
-    int _k;
-    int _rows;
-    int _columns;
-    int _variablesNumber;
-    int _restrictionNumber;
-    func _funcTendention;
+    bool        dual = false;
+    int         _iterationNumber = 1;
+    int         _r;
+    int         _k;
+    int         _rows;
+    int         _columns;
+    int         _variablesNumber;
+    int         _restrictionNumber;
+    func        _funcTendention;
+    char        _variable;
+    std::string _functionChar;
     std::vector< std::vector<float> > _A;
     std::vector<int>                  _B;
     std::vector<int>                  _C;
@@ -25,9 +28,10 @@ public:
     Simplex(std::vector<std::vector<float> >& A,
             std::vector<int>&                 B,
             std::vector<int>&                 C,
-            int variablesNumber,
-            int restrictionNumber,
-            func funcTendention
+            int                 variablesNumber,
+            int               restrictionNumber,
+            func                 funcTendention,
+            bool flag
     );
     
     void makeTable();
